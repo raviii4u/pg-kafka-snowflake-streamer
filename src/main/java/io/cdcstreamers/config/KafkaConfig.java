@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-@ConditionalOnExpression("'${cdc.mode:REALTIME}' == 'BATCH' && '${cdc.consumer.enabled:true}' != 'false'")
+@ConditionalOnExpression("'${cdc.mode:BATCH}'.equals('BATCH') and '${cdc.consumer.enabled:true}'.equals('true')")
 public class KafkaConfig {
     
     @Value("${spring.kafka.bootstrap-servers}")

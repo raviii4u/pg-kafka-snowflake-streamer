@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 
 
 @Service
-@ConditionalOnExpression("'${cdc.mode:REALTIME}' == 'BATCH' && '${cdc.consumer.enabled:true}' != 'false'")
+@ConditionalOnExpression("'${cdc.mode:BATCH}'.equals('BATCH') and '${cdc.consumer.enabled:true}'.equals('true')")
 public class KafkaConsumerService {
     
     private static final Logger log = LoggerFactory.getLogger(KafkaConsumerService.class);
