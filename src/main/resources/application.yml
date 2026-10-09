@@ -1,0 +1,142 @@
+spring:
+  application:
+    name: cdc-streamers
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
+    security:
+      protocol: ${KAFKA_SECURITY_PROTOCOL:SASL_SSL}
+    properties:
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:AWS_MSK_IAM}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:software.amazon.msk.auth.iam.IAMLoginModule required;}
+      sasl.client.callback.handler.class: ${KAFKA_CALLBACK_HANDLER:software.amazon.msk.auth.iam.IAMClientCallbackHandler}
+      auto.create.topics.enable: "true"
+    producer:
+      acks: "all"
+      retries: 3
+      batch-size: "65536"
+      linger-ms: "5"
+      buffer-memory: "134217728"
+      compression-type: "lz4"
+      max-in-flight-requests-per-connection: "5"
+      key-serializer: "org.apache.kafka.common.serialization.StringSerializer"
+      value-serializer: "org.apache.kafka.common.serialization.StringSerializer"
+      enable-idempotence: true
+      properties:
+        delivery.timeout.ms: 30000
+        request.timeout.ms: 10000
+        retry.backoff.ms: 1000
+        retry.backoff.max.ms: 2000
+    consumer:
+      group-id: ${KAFKA_CONSUMER_GROUP_ID:}
+      client-id: ${KAFKA_CONSUMER_CLIENT_ID:}
+      max-poll-records: ${KAFKA_MAX_POLL_RECORDS:500}
+      session-timeout: ${KAFKA_SESSION_TIMEOUT_MS:600000}
+      heartbeat-interval: ${KAFKA_HEARTBEAT_INTERVAL_MS:200000}
+      max-poll-interval: ${KAFKA_MAX_POLL_INTERVAL_MS:86400000}
+      key-deserializer: "org.apache.kafka.common.serialization.StringDeserializer"
+      value-deserializer: "org.apache.kafka.common.serialization.StringDeserializer"
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    timeout: 2000ms
+    connect-timeout: 2000ms
+    jedis:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,ready,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    redis:
+      enabled: false
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    io.cdcstreamers: INFO
+    org.springframework: WARN
+    org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
+    io.debezium: WARN
+    org.apache.kafka: WARN
+    io.sentry: WARN
+
+snowflake:
+  url: ${SNOWFLAKE_URL}
+  username: ${SNOWFLAKE_USERNAME}
+  private-key: ${SNOWFLAKE_PRIVATE_KEY}
+  database: ${SNOWFLAKE_DATABASE}
+  warehouse: ${SNOWFLAKE_WAREHOUSE}
+  role: ${SNOWFLAKE_ROLE:}
+  schema-mapping: {}
+    # Change values to map to different Snowflake schemas or leave empty if names are same
+    # Example: ravitest: MOVEPORTAL
+
+kafka:
+  topic-prefix: ${KAFKA_TOPIC_PREFIX:stream-}
+  max-poll-records: ${KAFKA_MAX_POLL_RECORDS:5000}
+  max-partition-fetch-bytes: ${KAFKA_MAX_PARTITION_FETCH_BYTES:5242880}
+  consumer:
+    topic-pattern: ${KAFKA_CONSUMER_TOPIC_PATTERN:}
+    group-id: ${KAFKA_CONSUMER_GROUP_ID:}
+    client-id: ${KAFKA_CONSUMER_CLIENT_ID:}
+    poll-timeout-seconds: ${KAFKA_CONSUMER_POLL_TIMEOUT_SECONDS:60}
+    excluded-tables: ${KAFKA_CONSUMER_EXCLUDED_TABLES:}
+
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENVIRONMENT:development}
+  traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.1}
+
+cdc:
+  mode: ${CDC_MODE:BATCH}  # realtime or batch
+  batch-size: ${CDC_BATCH_SIZE:500}
+  batch-timeout-ms: ${CDC_BATCH_TIMEOUT:300000}  # 5 minutes in milliseconds
+  producer:
+    enabled: ${CDC_PRODUCER_ENABLED:true}
+  consumer:
+    enabled: ${CDC_CONSUMER_ENABLED:true}
+
+
+schema:
+  clone:
+    enabled: ${SCHEMA_CLONE_ENABLED:false}
+    schedule:
+      datetime: ${SCHEMA_CLONE_DATETIME:}
+    source:
+      database: ${SCHEMA_CLONE_SOURCE_DB:}
+      schemas: ${SCHEMA_CLONE_SOURCE_SCHEMAS:}  # Comma-separated list
+    target:
+      database: ${SCHEMA_CLONE_TARGET_DB:}
+    targetRole: ${SCHEMA_CLONE_TARGET_ROLE:CDC_ROLE}
+
+debezium:
+  properties:
+    heartbeat.interval.ms: ${DEBEZIUM_HEARTBEAT_INTERVAL:10000}
+    heartbeat.topics.prefix: ${DEBEZIUM_HEARTBEAT_PREFIX:heartbeat}
+
+SEED_DDL_FROM_SOURCE: false
+
+pg:
+  snapshot:
+    enabled: ${PG_SNAPSHOT_ENABLED:false}
+    target:
+      database: ${PG_SNAPSHOT_TARGET_DATABASE:}
+      schemas: ${PG_SNAPSHOT_TARGET_SCHEMAS:}
+    batch-size: ${PG_SNAPSHOT_BATCH_SIZE:1500000}  # 1.5M rows per chunk ~180MB ZSTD Parquet on disk
+    threads: ${PG_SNAPSHOT_THREADS:4}
+    temp-dir: ${PG_SNAPSHOT_TEMP_DIR:/tmp/pg-snapshot}
+    schedule:
+      datetime: ${PG_SNAPSHOT_DATETIME:}
