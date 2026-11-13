@@ -1,4 +1,4 @@
-package io.cdcstreamers.service;
+package io.pgkafkasnowflakestreamer.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -6,20 +6,17 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import io.cdcstreamers.config.RedisConfig;
-import io.cdcstreamers.util.RedisSchemaUtil;
+import io.pgkafkasnowflakestreamer.config.RedisConfig;
+import io.pgkafkasnowflakestreamer.util.RedisSchemaUtil;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
-import io.cdcstreamers.model.CdcRecord;
+import io.pgkafkasnowflakestreamer.model.CdcRecord;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import io.cdcstreamers.util.SentryUtil;
-import io.sentry.SentryLevel;
-
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.time.Duration;
@@ -58,14 +55,8 @@ public class KafkaConsumerService {
     @Value("${kafka.consumer.poll-timeout-seconds:30}")
     private int pollTimeoutSeconds;
     
-    @Value("${schema.clone.enabled:false}")
-    private boolean cloneEnabled;
-    
     @Value("${pg.snapshot.enabled:false}")
     private boolean snapshotEnabled;
-    
-    @Value("${schema.clone.source.schemas:}")
-    private String sourceSchemas;
 
     @Value("${pg.snapshot.target.schemas:}")
     private String snapshotTargetSchemas;
@@ -108,12 +99,12 @@ public class KafkaConsumerService {
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         if (shutdownRequested && !redisConfig.isRedisAvailable()) {
-            SentryUtil.captureMessage("Kafka consumer not started - Redis unavailable. Manual restart required after Redis recovery.", SentryLevel.FATAL);
+            log.error("FATAL: Kafka consumer not started - Redis unavailable. Manual restart required after Redis recovery.");
         }
     }
 
     private String getActiveSchemas() {
-        return snapshotEnabled ? snapshotTargetSchemas : sourceSchemas;
+        return snapshotTargetSchemas;
     }
 
     private void startConsumer() {
@@ -176,12 +167,12 @@ public class KafkaConsumerService {
                 consumer.close();
                 consumer = null;
             }
-            SentryUtil.captureMessage("Consumer stopped because Debezium engine is down. Manual restart required.", SentryLevel.FATAL);
+            log.error("FATAL: Consumer stopped because Debezium engine is down. Manual restart required.");
             return;
         }
         
-        if ((cloneEnabled || snapshotEnabled) && !redisSchemaUtil.areSchemasAlreadyCloned(getActiveSchemas())) {
-            log.info("Schema cloning not completed yet, consumer not started");
+        if (snapshotEnabled && !redisSchemaUtil.areSchemasAlreadyCloned(getActiveSchemas())) {
+            log.info("Schema snapshot not yet completed, consumer not started");
             return;
         }
         
@@ -225,17 +216,15 @@ public class KafkaConsumerService {
             
         } catch (Exception e) {
             log.error("Batch processing failed - Kafka offsets NOT committed. Stopping consumer: {}", e.getMessage(), e);
-            SentryUtil.captureException(e);
-            
+
             // Stop only the consumer, keep Debezium running
             shutdownRequested = true;
             if (consumer != null) {
                 consumer.close();
                 consumer = null;
             }
-            
-            log.error("Consumer stopped due to failure. Manual restart required.");
-            SentryUtil.captureMessage("CDC Consumer stopped due to failure. Manual restart required.", SentryLevel.FATAL);
+
+            log.error("FATAL: Consumer stopped due to failure. Manual restart required.");
             return;
         } finally {
             batchInProgress = false;

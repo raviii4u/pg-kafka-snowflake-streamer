@@ -1,6 +1,6 @@
 spring:
   application:
-    name: cdc-streamers
+    name: pg-kafka-snowflake-streamer
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:}
     security:
@@ -66,12 +66,11 @@ management:
 logging:
   level:
     root: INFO
-    io.cdcstreamers: INFO
+    io.pgkafkasnowflakestreamer: INFO
     org.springframework: WARN
     org.springframework.context.support.PostProcessorRegistrationDelegate: ERROR
     io.debezium: WARN
     org.apache.kafka: WARN
-    io.sentry: WARN
 
 snowflake:
   url: ${SNOWFLAKE_URL}
@@ -95,11 +94,6 @@ kafka:
     poll-timeout-seconds: ${KAFKA_CONSUMER_POLL_TIMEOUT_SECONDS:60}
     excluded-tables: ${KAFKA_CONSUMER_EXCLUDED_TABLES:}
 
-sentry:
-  dsn: ${SENTRY_DSN:}
-  environment: ${SENTRY_ENVIRONMENT:development}
-  traces-sample-rate: ${SENTRY_TRACES_SAMPLE_RATE:0.1}
-
 cdc:
   mode: ${CDC_MODE:BATCH}  # realtime or batch
   batch-size: ${CDC_BATCH_SIZE:500}
@@ -109,18 +103,6 @@ cdc:
   consumer:
     enabled: ${CDC_CONSUMER_ENABLED:true}
 
-
-schema:
-  clone:
-    enabled: ${SCHEMA_CLONE_ENABLED:false}
-    schedule:
-      datetime: ${SCHEMA_CLONE_DATETIME:}
-    source:
-      database: ${SCHEMA_CLONE_SOURCE_DB:}
-      schemas: ${SCHEMA_CLONE_SOURCE_SCHEMAS:}  # Comma-separated list
-    target:
-      database: ${SCHEMA_CLONE_TARGET_DB:}
-    targetRole: ${SCHEMA_CLONE_TARGET_ROLE:CDC_ROLE}
 
 debezium:
   properties:

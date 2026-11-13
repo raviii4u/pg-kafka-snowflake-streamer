@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CDC Agent Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .stepper { display: flex; justify-content: space-between; margin: 30px 0; }
+        .step { flex: 1; text-align: center; position: relative; }
+        .step::after { content: ''; position: absolute; top: 20px; left: 50%; width: 100%; height: 2px; background: #ddd; z-index: -1; }
+        .step:last-child::after { display: none; }
+        .step-circle { width: 40px; height: 40px; border-radius: 50%; background: #ddd; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: bold; }
+        .step.active .step-circle { background: #007cba; }
+        .step.completed .step-circle { background: #28a745; }
+        .step-content { display: none; padding: 20px; border: 1px solid #ddd; border-radius: 4px; margin: 20px 0; }
+        .step-content.active { display: block; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .required { color: red; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        button:hover { background: #005a87; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-secondary { background: #6c757d; }
+        .btn-secondary:hover { background: #545b62; }
+        .section { padding: 15px; }
+        .section h3 { margin-top: 0; }
+        .output { margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 4px; }
+        .file-content { background: white; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; }
+        #deployBtn { background: #28a745; }
+        #deployBtn:hover { background: #218838; }
+        @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
+        pre { white-space: pre-wrap; font-size: 12px; }
+        .step-buttons { text-align: center; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>CDC Agent Generator</h1>
+    <div class="stepper">
+        <div class="step active" data-step="1">
+            <div class="step-circle">1</div>
+            <div>Basic Config</div>
+        </div>
+        <div class="step" data-step="2">
+            <div class="step-circle">2</div>
+            <div>Database Config</div>
+        </div>
+        <div class="step" data-step="3">
+            <div class="step-circle">3</div>
+            <div>Advanced Config</div>
+        </div>
+        <div class="step" data-step="4">
+            <div class="step-circle">4</div>
+            <div>Review & Generate</div>
+        </div>
+    </div>
+    
+    <form id="agentForm">
+        <!-- Step 1: Basic Configuration -->
+        <div class="step-content active" data-step="1">
+            <div class="section">
+                <h3>Basic Configuration</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Environment <span class="required">*</span></label>
+                        <select name="environment" required>
+                            <option value="dev">Development</option>
+                            <option value="prod">Production</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Agent Name <span class="required">*</span></label>
+                        <input type="text" name="agentName" required placeholder="e.g., ecommerce-agent">
+                    </div>
+                    <div class="form-group">
+                        <label>Redis Password <span class="required">*</span></label>
+                        <input type="password" name="redisPassword" required>
+                    </div>
+                </div>
+            </div>
+            <div class="step-buttons">
+                <button type="button" onclick="nextStep()">Next</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Database Configuration -->
+        <div class="step-content" data-step="2">
+            <div class="form-grid">
+                <div class="section">
+                    <h3>PostgreSQL Configuration</h3>
+                    <div class="form-group">
+                        <label>Host <span class="required">*</span></label>
+                        <input type="text" name="postgresHost" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Database <span class="required">*</span></label>
+                        <input type="text" name="postgresDatabase" required>
+                    </div>
+                    <div class="form-group">
+                        <label>User <span class="required">*</span></label>
+                        <input type="text" name="postgresUser" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password <span class="required">*</span></label>
+                        <input type="password" name="postgresPassword" required>
+                    </div>
+                    <h4 style="margin: 20px 0 10px 0; color: #666;">Debezium Settings</h4>
+                    <div class="form-group">
+                        <label>Schema Include List <span class="required">*</span></label>
+                        <input type="text" name="schemaIncludeList" required placeholder="public">
+                    </div>
+                    <div class="form-group">
+                        <label>Table Filter <small style="color: #666; font-weight: normal;">(enter include or exclude list, not both)</small></label>
+                        <div style="display: flex; gap: 12px; margin-bottom: 6px;">
+                            <label style="font-weight: normal;"><input type="radio" name="tableFilterType" value="include" checked onchange="updateTableFilterPlaceholder()"> Include List</label>
+                            <label style="font-weight: normal;"><input type="radio" name="tableFilterType" value="exclude" onchange="updateTableFilterPlaceholder()"> Exclude List</label>
+                        </div>
+                        <input type="text" id="tableFilterValue" name="tableFilterValue" placeholder="schema.table1,schema.table2">
+                    </div>
+                    <div class="form-group">
+                        <label>Kafka Consumer Excluded Tables</label>
+                        <input type="text" name="kafkaConsumerExcludedTables" placeholder="schema.*, schema.table">
+                        <small style="color: #666; font-size: 12px;">Exclude tables from Kafka consumption. Use schema.* for all tables in schema or schema.table for specific table</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Debezium Signalling</label>
+                        <input type="text" name="debeziumSignalDataCollection" value="public.debezium_signal" placeholder="public.debezium_signal">
+                        <small style="color: #666; font-size: 12px;">Debezium signalling table for incremental snapshots</small>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Snowflake Configuration</h3>
+                    <div class="form-group">
+                        <label>URL <span class="required">*</span></label>
+                        <input type="text" name="snowflakeUrl" required placeholder="jdbc:snowflake://your-account.snowflakecomputing.com" value="">
+                    </div>
+                    <div class="form-group">
+                        <label>Database <span class="required">*</span></label>
+                        <input type="text" name="snowflakeDatabase" required placeholder="YOUR_SNOWFLAKE_DATABASE" value="">
+                    </div>
+                    <div class="form-group">
+                        <label>Username <span class="required">*</span></label>
+                        <input type="text" name="snowflakeUsername" required value="CDC_USER">
+                    </div>
+                    <div class="form-group">
+                        <label>Password <span class="required">*</span></label>
+                        <input type="password" name="snowflakePassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Role <span class="required">*</span></label>
+                        <input type="text" name="snowflakeRole" required value="CDC_ROLE">
+                    </div>
+                    <div class="form-group">
+                        <label>Warehouse <span class="required">*</span></label>
+                        <input type="text" name="snowflakeWarehouse" required value="CDC_WAREHOUSE">
+                    </div>
+                    <div class="form-group">
+                        <label>Schema Mapping</label>
+                        <input type="text" name="snowflakeSchemaMapping" placeholder="e.g., PUBLIC:MOVEPORTAL,XYZ:ABC">
+                        <small style="color: #666; font-size: 12px;">Only if PostgreSQL and Snowflake schema names are different or leave empty<br>Format: SOURCE:TARGET,SOURCE2:TARGET2</small>
+                    </div>
+                </div>
+            </div>
+            <div class="step-buttons">
+                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
+                <button type="button" onclick="nextStep()">Next</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Advanced Configuration -->
+        <div class="step-content" data-step="3">
+            <div class="form-grid">
+                <div class="section">
+                    <h3>CDC & Kafka Configuration</h3>
+                    <div class="form-group">
+                        <label>CDC Batch Size</label>
+                        <input type="number" name="cdcBatchSize" value="500">
+                    </div>
+                    <div class="form-group">
+                        <label>CDC Mode</label>
+                        <select name="cdcMode">
+                            <option value="BATCH">BATCH</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>MicroBatch Schedule Frequency in MS</label>
+                        <input type="number" name="cdcBatchTimeout" value="300000">
+                    </div>
+                    <div class="form-group">
+                        <label>Kafka Bootstrap Servers <span class="required">*</span></label>
+                        <input type="text" name="kafkaBootstrapServers" required>
+                    </div>
+                    <div class="form-group">
+                        <label>AWS Access Key ID <span class="required">*</span></label>
+                        <input type="text" name="awsAccessKeyId" required>
+                    </div>
+                    <div class="form-group">
+                        <label>AWS Secret Access Key <span class="required">*</span></label>
+                        <input type="password" name="awsSecretAccessKey" required>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>Initial Data Seeding Configuration</h3>
+
+                    <!-- PostgreSQL Snapshot fields -->
+                    <div>
+                        <div class="form-group">
+                            <label>Snapshot Batch Size</label>
+                            <input type="text" name="pgSnapshotBatchSize" value="1000000">
+                        </div>
+                        <div class="form-group">
+                            <label>Snapshot DateTime</label>
+                            <input type="text" name="pgSnapshotDatetime" placeholder="2026-05-19 15:31:00">
+                        </div>
+                        <div class="form-group">
+                            <label>Snapshot Target Database</label>
+                            <input type="text" name="pgSnapshotTargetDatabase" placeholder="YOUR_SNOWFLAKE_DATABASE" value="">
+                        </div>
+                        <div class="form-group">
+                            <label>Snapshot Target Schemas</label>
+                            <input type="text" name="pgSnapshotTargetSchemas" placeholder="your_schema">
+                        </div>
+                        <div class="form-group">
+                            <label>Snapshot Temp Dir</label>
+                            <input type="text" name="pgSnapshotTempDir" value="/tmp/pg-snapshot">
+                        </div>
+                        <div class="form-group">
+                            <label>Snapshot Threads</label>
+                            <input type="text" name="pgSnapshotThreads" value="4">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="step-buttons">
+                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
+                <button type="button" onclick="generateConfig()">Generate Configuration</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Review & Deploy -->
+        <div class="step-content" data-step="4">
+            <div id="preview"></div>
+            <div class="step-buttons">
+                <button type="button" class="btn-secondary" onclick="prevStep()">Previous</button>
+                <button type="button" onclick="editConfig()">Edit Configuration</button>
+                <button id="deployBtn" type="button" onclick="deployToKubernetes()">Deploy to Kubernetes</button>
+            </div>
+        </div>
+    </form>
+
+
+    <script>
+        console.log('Script loaded - version 3.0');
+        let currentStep = 1;
+        let currentConfig = {};
+
+        function updateTableFilterPlaceholder() {
+            const type = document.querySelector('input[name="tableFilterType"]:checked').value;
+            const input = document.getElementById('tableFilterValue');
+            input.placeholder = type === 'exclude' ? 'schema.table1,schema.table2 (to exclude)' : 'schema.table1,schema.table2';
+        }
+        
+        function saveFormData() {
+            const formData = new FormData(document.getElementById('agentForm'));
+            const data = Object.fromEntries(formData.entries());
+            localStorage.setItem('cdcAgentConfig', JSON.stringify(data));
+        }
+        
+        function loadFormData() {
+            const saved = localStorage.getItem('cdcAgentConfig');
+            if (saved) {
+                const data = JSON.parse(saved);
+                Object.entries(data).forEach(([key, value]) => {
+                    const input = document.querySelector(`[name="${key}"]`);
+                    if (input) input.value = value;
+                });
+            }
+        }
+        
+        window.addEventListener('load', loadFormData);
+        
+        function showStep(step) {
+            document.querySelectorAll('.step-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.querySelectorAll('.step').forEach(stepEl => {
+                stepEl.classList.remove('active', 'completed');
+            });
+            
+            document.querySelector(`[data-step="${step}"]`).classList.add('active');
+            document.querySelector(`.step-content[data-step="${step}"]`).classList.add('active');
+            
+            for (let i = 1; i < step; i++) {
+                document.querySelector(`.step[data-step="${i}"]`).classList.add('completed');
+            }
+        }
+        
+        function nextStep() {
+            if (validateCurrentStep()) {
+                saveFormData();
+                currentStep++;
+                showStep(currentStep);
+            }
+        }
+        
+        function prevStep() {
+            currentStep--;
+            showStep(currentStep);
+        }
+        
+        function validateCurrentStep() {
+            const currentStepContent = document.querySelector(`.step-content[data-step="${currentStep}"]`);
+            const requiredFields = currentStepContent.querySelectorAll('[required]');
+            
+            for (let field of requiredFields) {
+                if (!field.value.trim()) {
+                    field.focus();
+                    alert(`Please fill in the required field: ${field.previousElementSibling.textContent}`);
+                    return false;
+                }
+            }
+            return true;
+        }
+        
+        function generateConfig() {
+            if (!validateCurrentStep()) return;
+            
+            const formData = new FormData(document.getElementById('agentForm'));
+            currentConfig = Object.fromEntries(formData.entries());
+            
+            // Auto-generate Kafka configuration
+            currentConfig.kafkaTopicPrefix = `stream-${currentConfig.agentName}-`;
+            currentConfig.kafkaConsumerTopicPattern = `stream-${currentConfig.agentName}-*`;
+            currentConfig.kafkaConsumerClientId = `stream-consumer-${currentConfig.agentName}-${currentConfig.environment}`;
+            currentConfig.kafkaConsumerGroupId = `stream-group-${currentConfig.agentName}-${currentConfig.environment}`;
+            
+            // Auto-generate Debezium slot and publication names
+            currentConfig.replicationSlotName = `debezium_stream_${currentConfig.agentName}_slot`;
+            currentConfig.publicationName = `debezium_stream_${currentConfig.agentName}_publication`;
+            
+            
+            // Set all auto-generated values for preview
+            currentConfig.kafkaTopicPrefix = `stream-${currentConfig.agentName}-`;
+            currentConfig.kafkaConsumerTopicPattern = `stream-${currentConfig.agentName}-*`;
+            currentConfig.kafkaConsumerClientId = `stream-consumer-${currentConfig.agentName}-${currentConfig.environment}`;
+            currentConfig.kafkaConsumerGroupId = `stream-group-${currentConfig.agentName}-${currentConfig.environment}`;
+            currentConfig.replicationSlotName = `debezium_stream_${currentConfig.agentName}_slot`;
+            currentConfig.publicationName = `debezium_stream_${currentConfig.agentName}_publication`;
+            
+            const ecrRegistry = currentConfig.ecrRegistry || 'YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com';
+            const ecrEnv = currentConfig.environment === 'prod' ? 'prd' : currentConfig.environment;
+
+            const vars = {
+                AGENT_NAME: currentConfig.agentName,
+                CONFIG_MAP_NAME: `pg-kafka-snowflake-streamer-${currentConfig.agentName}`,
+                SECRET_NAME: `pg-kafka-snowflake-streamer-${currentConfig.agentName}`,
+                NAMESPACE: `pg-kafka-snowflake-streamer-${currentConfig.environment === 'prod' ? 'prd' : currentConfig.environment}`,
+                ENVIRONMENT: currentConfig.environment,
+                DEBEZIUM_COMMON_PROPS: 'debezium-common-props',
+                PVC_CLAIM: `pg-kafka-snowflake-streamer-${ecrEnv}-offsets`,
+                DOCKER_IMAGE: `${ecrRegistry}/pg-kafka-snowflake-streamer-${ecrEnv}/pg-kafka-snowflake-streamer:latest`,
+                POSTGRES_HOST: currentConfig.postgresHost,
+                POSTGRES_DATABASE: currentConfig.postgresDatabase,
+                POSTGRES_USER: currentConfig.postgresUser,
+                POSTGRES_PASSWORD: '***HIDDEN***',
+                POSTGRES_PORT: '5432',
+                SNOWFLAKE_URL: currentConfig.snowflakeUrl,
+                SNOWFLAKE_DATABASE: currentConfig.snowflakeDatabase,
+                SNOWFLAKE_SCHEMA: currentConfig.snowflakeSchema,
+                SNOWFLAKE_USERNAME: currentConfig.snowflakeUsername,
+                SNOWFLAKE_ROLE: currentConfig.snowflakeRole,
+                SNOWFLAKE_WAREHOUSE: currentConfig.snowflakeWarehouse,
+                SNOWFLAKE_PASSWORD: '***HIDDEN***',
+                REDIS_PASSWORD: '***HIDDEN***',
+                SCHEMA_INCLUDE_LIST: currentConfig.schemaIncludeList,
+                REPLICATION_SLOT_NAME: currentConfig.replicationSlotName,
+                PUBLICATION_NAME: currentConfig.publicationName,
+                TABLE_FILTER_TYPE: currentConfig.tableFilterType || 'include',
+                TABLE_FILTER_VALUE: currentConfig.tableFilterValue || '',
+                KAFKA_BOOTSTRAP_SERVERS: currentConfig.kafkaBootstrapServers,
+                KAFKA_CONSUMER_CLIENT_ID: currentConfig.kafkaConsumerClientId,
+                KAFKA_CONSUMER_GROUP_ID: currentConfig.kafkaConsumerGroupId,
+                KAFKA_CONSUMER_TOPIC_PATTERN: currentConfig.kafkaConsumerTopicPattern,
+                KAFKA_TOPIC_PREFIX: currentConfig.kafkaTopicPrefix,
+                AWS_ACCESS_KEY_ID: currentConfig.awsAccessKeyId,
+                AWS_SECRET_ACCESS_KEY: '***HIDDEN***',
+            };
+            
+            // Parse schema mapping
+            let schemaMappingEnvVars = '';
+            if (currentConfig.snowflakeSchemaMapping && currentConfig.snowflakeSchemaMapping.trim()) {
+                const mappings = currentConfig.snowflakeSchemaMapping.split(',');
+                mappings.forEach(mapping => {
+                    const [source, target] = mapping.split(':').map(s => s.trim());
+                    if (source && target) {
+                        schemaMappingEnvVars += `  snowflake.schema-mapping.${source.toLowerCase()}: "${target}"\n`;
+                    }
+                });
+            } else {
+                schemaMappingEnvVars = '  snowflake.schema-mapping: "{}"\n';
+            }
+            
+            const cloneEnvVars = (
+`  PG_SNAPSHOT_BATCH_SIZE: "${currentConfig.pgSnapshotBatchSize || '1000000'}"\n` +
+`  PG_SNAPSHOT_DATETIME: "${currentConfig.pgSnapshotDatetime || ''}"\n` +
+`  PG_SNAPSHOT_ENABLED: "true"\n` +
+`  PG_SNAPSHOT_TARGET_DATABASE: "${currentConfig.pgSnapshotTargetDatabase || ''}"\n` +
+`  PG_SNAPSHOT_TARGET_SCHEMAS: "${currentConfig.pgSnapshotTargetSchemas || ''}"\n` +
+`  PG_SNAPSHOT_TEMP_DIR: "${currentConfig.pgSnapshotTempDir || '/tmp/pg-snapshot'}"\n` +
+`  PG_SNAPSHOT_THREADS: "${currentConfig.pgSnapshotThreads || '4'}"`
+            );
+
+            const configMapPreview = `apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${vars.CONFIG_MAP_NAME}
+  namespace: ${vars.NAMESPACE}
+data:
+  CLOUD_ENV: "${vars.ENVIRONMENT}"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  SNOWFLAKE_DATABASE: "${currentConfig.snowflakeDatabase}"
+  SNOWFLAKE_ROLE: "${currentConfig.snowflakeRole}"
+  SNOWFLAKE_URL: "${currentConfig.snowflakeUrl}"
+  SNOWFLAKE_USERNAME: "${currentConfig.snowflakeUsername}"
+  SNOWFLAKE_WAREHOUSE: "${currentConfig.snowflakeWarehouse}"
+${schemaMappingEnvVars.slice(0, -1)}
+  debezium.properties.converters: "datetime"
+  debezium.properties.database.dbname: "${vars.POSTGRES_DATABASE}"
+  debezium.properties.database.hostname: "${vars.POSTGRES_HOST}"
+  debezium.properties.database.port: "${vars.POSTGRES_PORT}"
+  debezium.properties.database.user: "${vars.POSTGRES_USER}"
+  debezium.properties.datetime.type: "io.pgkafkasnowflakestreamer.converter.CustomDateTimeConverter"
+  debezium.properties.database.history.file.filename: "/var/lib/cdc-offsets/pg-kafka-snowflake-streamer-${vars.AGENT_NAME}-dbhistory-${vars.ENVIRONMENT}.dat"
+  debezium.properties.decimal.handling.mode: "string"
+  debezium.properties.name: "postgres-connector"
+  debezium.properties.offset.storage.file.filename: "/var/lib/cdc-offsets/pg-kafka-snowflake-streamer-${vars.AGENT_NAME}-offsets.dat"
+  debezium.properties.publication.name: "${vars.PUBLICATION_NAME}"
+  debezium.properties.schema.include.list: "${vars.SCHEMA_INCLUDE_LIST}"
+  debezium.properties.slot.name: "${vars.REPLICATION_SLOT_NAME}"
+  debezium.properties.snapshot.mode: "never"
+${vars.TABLE_FILTER_VALUE ? (vars.TABLE_FILTER_TYPE === 'exclude' ? '  debezium.properties.table.exclude.list: "' + vars.TABLE_FILTER_VALUE + '"' : '  debezium.properties.table.include.list: "' + vars.TABLE_FILTER_VALUE + '"') : ''}
+  debezium.properties.time.precision.mode: "adaptive_time_microseconds"
+  debezium.properties.topic.prefix: "cdc"
+  debezium.properties.heartbeat.interval.ms: "10000"
+  debezium.properties.heartbeat.topics.prefix: "heartbeat"
+  debezium.properties.heartbeat.action.query: "update public.debezium_heartbeat set last_heartbeat_ts = now();"
+  debezium.properties.signal.data.collection: "${currentConfig.debeziumSignalDataCollection || 'public.debezium_signal'}"
+  KAFKA_BOOTSTRAP_SERVERS: "${vars.KAFKA_BOOTSTRAP_SERVERS}"
+  KAFKA_CONSUMER_CLIENT_ID: "${vars.KAFKA_CONSUMER_CLIENT_ID}"
+  KAFKA_CONSUMER_GROUP_ID: "${vars.KAFKA_CONSUMER_GROUP_ID}"
+  KAFKA_CONSUMER_TOPIC_PATTERN: "${vars.KAFKA_CONSUMER_TOPIC_PATTERN}"
+  KAFKA_CONSUMER_EXCLUDED_TABLES: "${currentConfig.kafkaConsumerExcludedTables || ''}"
+  KAFKA_TOPIC_PREFIX: "${vars.KAFKA_TOPIC_PREFIX}"
+  CDC_BATCH_SIZE: "${currentConfig.cdcBatchSize || '500'}"
+  CDC_MODE: "${currentConfig.cdcMode || 'BATCH'}"
+  CDC_BATCH_TIMEOUT: "${currentConfig.cdcBatchTimeout || '300000'}"
+${cloneEnvVars}
+            
+            const secretPreview = `apiVersion: v1
+kind: Secret
+metadata:
+  name: ${vars.SECRET_NAME}
+  namespace: ${vars.NAMESPACE}
+type: Opaque
+stringData:
+  AWS_ACCESS_KEY_ID: "${currentConfig.awsAccessKeyId}"
+  AWS_SECRET_ACCESS_KEY: "${currentConfig.awsSecretAccessKey}"
+  REDIS_PASSWORD: "${currentConfig.redisPassword}"
+  SNOWFLAKE_PASSWORD: "${currentConfig.snowflakePassword}"
+  SPRING_BOOT_JAVA_OPTS: "--add-opens=java.base/java.nio=ALL-UNNAMED"
+  debezium.properties.database.password: "${currentConfig.postgresPassword}"`;
+            
+            const deploymentPreview = `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pg-kafka-snowflake-streamer-${vars.AGENT_NAME}
+  namespace: ${vars.NAMESPACE}
+  labels:
+    app: pg-kafka-snowflake-streamer
+    agent: ${vars.AGENT_NAME}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pg-kafka-snowflake-streamer
+      agent: ${vars.AGENT_NAME}
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: 'true'
+        prometheus.io/path: /actuator/prometheus
+      labels:
+        app: pg-kafka-snowflake-streamer
+        agent: ${vars.AGENT_NAME}
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+      - name: pg-kafka-snowflake-streamer
+        image: ${vars.DOCKER_IMAGE}
+        imagePullPolicy: Always
+        env:
+        - name: APP_OPTIONS
+          value: '-DNAMESPACE_ENV=${vars.ENVIRONMENT} -Dspring.profiles.active=cloud,cloud-${vars.ENVIRONMENT}'
+        - name: JAVA_TOOL_OPTIONS
+          value: '--add-opens=java.base/java.nio=ALL-UNNAMED'
+        envFrom:
+        - configMapRef:
+            name: ${vars.DEBEZIUM_COMMON_PROPS}
+        - configMapRef:
+            name: ${vars.CONFIG_MAP_NAME}
+        - secretRef:
+            name: ${vars.SECRET_NAME}
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /health/cdc
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: ${vars.ENVIRONMENT === 'prod' ? '200m' : '100m'}
+            memory: ${vars.ENVIRONMENT === 'prod' ? '2Gi' : '512Mi'}
+          limits:
+            cpu: ${vars.ENVIRONMENT === 'prod' ? '2' : '1000m'}
+            memory: ${vars.ENVIRONMENT === 'prod' ? '2Gi' : '1Gi'}
+        volumeMounts:
+        - name: cdc-offsets
+          mountPath: /var/lib/cdc-offsets
+      volumes:
+      - name: cdc-offsets
+        persistentVolumeClaim:
+          claimName: ${vars.PVC_CLAIM}`;
+            
+            const previewDiv = document.querySelector('.step-content[data-step="4"] #preview');
+            previewDiv.innerHTML = `
+                <div class="file-content">
+                    <h4>${currentConfig.agentName}-configmap.yaml</h4>
+                    <pre>${configMapPreview}</pre>
+                </div>
+                <div class="file-content">
+                    <h4>${currentConfig.agentName}-secret.yaml</h4>
+                    <pre>${secretPreview}</pre>
+                </div>
+                <div class="file-content">
+                    <h4>${currentConfig.agentName}-deployment.yaml</h4>
+                    <pre>${deploymentPreview}</pre>
+                </div>
+            `;
+            
+            currentStep = 4;
+            showStep(currentStep);
+        }
+        
+        function editConfig() {
+            Object.entries(currentConfig).forEach(([key, value]) => {
+                const input = document.querySelector(`[name="${key}"]`);
+                if (input) input.value = value;
+            });
+            
+            currentStep = 1;
+            showStep(currentStep);
+        }
+        
+        function deployToKubernetes() {
+            // Generate auto-config values
+            const kafkaTopicPrefix = `stream-${currentConfig.agentName}-`;
+            const kafkaConsumerClientId = `stream-consumer-${currentConfig.agentName}-${currentConfig.environment}`;
+            const kafkaConsumerGroupId = `stream-group-${currentConfig.agentName}-${currentConfig.environment}`;
+            const kafkaConsumerTopicPattern = `stream-${currentConfig.agentName}-*`;
+            const replicationSlotName = `debezium_stream_${currentConfig.agentName}_slot`;
+            const publicationName = `debezium_stream_${currentConfig.agentName}_publication`;
+            const ecrRegistry = currentConfig.ecrRegistry || 'YOUR_AWS_ACCOUNT_ID.dkr.ecr.YOUR_REGION.amazonaws.com';
+            const ecrEnv = currentConfig.environment === 'prod' ? 'prd' : currentConfig.environment;
+            const namespace = `pg-kafka-snowflake-streamer-${currentConfig.environment === 'prod' ? 'prd' : currentConfig.environment}`;
+            const configMapName = `pg-kafka-snowflake-streamer-${currentConfig.agentName}`;
+            const secretName = `pg-kafka-snowflake-streamer-${currentConfig.agentName}`;
+            const deploymentName = `pg-kafka-snowflake-streamer-${currentConfig.agentName}`;
+            
+            // Parse schema mapping for kubectl command
+            let schemaMappingEnvVars = '';
+            if (currentConfig.snowflakeSchemaMapping && currentConfig.snowflakeSchemaMapping.trim()) {
+                const mappings = currentConfig.snowflakeSchemaMapping.split(',');
+                mappings.forEach(mapping => {
+                    const [source, target] = mapping.split(':').map(s => s.trim());
+                    if (source && target) {
+                        schemaMappingEnvVars += '  snowflake.schema-mapping.' + source.toLowerCase() + ': "' + target + '"\n';
+                    }
+                });
+            } else {
+                schemaMappingEnvVars = '  snowflake.schema-mapping: "{}"\n';
+            }
+            
+            const cloneKubectlVars =
+'  PG_SNAPSHOT_BATCH_SIZE: "' + (currentConfig.pgSnapshotBatchSize || '1000000') + '"\n' +
+'  PG_SNAPSHOT_DATETIME: "' + (currentConfig.pgSnapshotDatetime || '') + '"\n' +
+'  PG_SNAPSHOT_ENABLED: "true"\n' +
+'  PG_SNAPSHOT_TARGET_DATABASE: "' + (currentConfig.pgSnapshotTargetDatabase || '') + '"\n' +
+'  PG_SNAPSHOT_TARGET_SCHEMAS: "' + (currentConfig.pgSnapshotTargetSchemas || '') + '"\n' +
+'  PG_SNAPSHOT_TEMP_DIR: "' + (currentConfig.pgSnapshotTempDir || '/tmp/pg-snapshot') + '"\n' +
+'  PG_SNAPSHOT_THREADS: "' + (currentConfig.pgSnapshotThreads || '4') + '"\n';
+
+            const command = 'kubectl apply -f - <<EOF\n' +
+'apiVersion: v1\n' +
+'kind: ConfigMap\n' +
+'metadata:\n' +
+'  name: ' + configMapName + '\n' +
+'  namespace: ' + namespace + '\n' +
+'data:\n' +
+'  CLOUD_ENV: "' + currentConfig.environment + '"\n' +
+'  REDIS_HOST: "redis"\n' +
+'  REDIS_PORT: "6379"\n' +
+'  SNOWFLAKE_DATABASE: "' + currentConfig.snowflakeDatabase + '"\n' +
+'  SNOWFLAKE_ROLE: "' + currentConfig.snowflakeRole + '"\n' +
+schemaMappingEnvVars +
+'  SNOWFLAKE_URL: "' + currentConfig.snowflakeUrl + '"\n' +
+'  SNOWFLAKE_USERNAME: "' + currentConfig.snowflakeUsername + '"\n' +
+'  SNOWFLAKE_WAREHOUSE: "' + currentConfig.snowflakeWarehouse + '"\n' +
+'  debezium.properties.converters: "datetime"\n' +
+'  debezium.properties.database.dbname: "' + currentConfig.postgresDatabase + '"\n' +
+'  debezium.properties.database.hostname: "' + currentConfig.postgresHost + '"\n' +
+'  debezium.properties.database.port: "5432"\n' +
+'  debezium.properties.database.user: "' + currentConfig.postgresUser + '"\n' +
+'  debezium.properties.datetime.type: "io.pgkafkasnowflakestreamer.converter.CustomDateTimeConverter"\n' +
+'  debezium.properties.database.history.file.filename: "/var/lib/cdc-offsets/pg-kafka-snowflake-streamer-' + currentConfig.agentName + '-dbhistory-' + currentConfig.environment + '.dat"\n' +
+'  debezium.properties.decimal.handling.mode: "string"\n' +
+'  debezium.properties.name: "postgres-connector"\n' +
+'  debezium.properties.offset.storage.file.filename: "/var/lib/cdc-offsets/pg-kafka-snowflake-streamer-' + currentConfig.agentName + '-offsets-' + currentConfig.environment + '.dat"\n' +
+'  debezium.properties.publication.name: "' + publicationName + '"\n' +
+'  debezium.properties.schema.include.list: "' + currentConfig.schemaIncludeList + '"\n' +
+'  debezium.properties.slot.name: "' + replicationSlotName + '"\n' +
+'  debezium.properties.snapshot.mode: "never"\n' +
+((currentConfig.tableFilterValue) ? ('  debezium.properties.table.' + (currentConfig.tableFilterType === 'exclude' ? 'exclude' : 'include') + '.list: "' + currentConfig.tableFilterValue + '"\n') : '') +
+'  debezium.properties.time.precision.mode: "adaptive_time_microseconds"\n' +
+'  debezium.properties.topic.prefix: "cdc"\n' +
+'  debezium.properties.heartbeat.interval.ms: "10000"\n' +
+'  debezium.properties.heartbeat.topics.prefix: "heartbeat"\n' +
+'  debezium.properties.heartbeat.action.query: "update public.debezium_heartbeat set last_heartbeat_ts = now();"\n' +
+'  debezium.properties.signal.data.collection: "' + (currentConfig.debeziumSignalDataCollection || 'public.debezium_signal') + '"\n' +
+'  KAFKA_BOOTSTRAP_SERVERS: "' + currentConfig.kafkaBootstrapServers + '"\n' +
+'  KAFKA_CONSUMER_CLIENT_ID: "' + kafkaConsumerClientId + '"\n' +
+'  KAFKA_CONSUMER_GROUP_ID: "' + kafkaConsumerGroupId + '"\n' +
+'  KAFKA_CONSUMER_TOPIC_PATTERN: "' + kafkaConsumerTopicPattern + '"\n' +
+'  KAFKA_CONSUMER_EXCLUDED_TABLES: "' + (currentConfig.kafkaConsumerExcludedTables || '') + '"\n' +
+'  KAFKA_TOPIC_PREFIX: "' + kafkaTopicPrefix + '"\n' +
+'  KAFKA_CONNECTIONS_MAX_IDLE_MS: "90000000"\n' +
+'  KAFKA_HEARTBEAT_INTERVAL_MS: "200000"\n' +
+'  KAFKA_MAX_POLL_INTERVAL_MS: "86400000"\n' +
+'  KAFKA_POLL_TIMEOUT_SECONDS: "60"\n' +
+'  KAFKA_SESSION_TIMEOUT_MS: "600000"\n' +
+'  CDC_BATCH_SIZE: "' + (currentConfig.cdcBatchSize || '500') + '"\n' +
+'  CDC_MODE: "' + (currentConfig.cdcMode || 'BATCH') + '"\n' +
+'  CDC_BATCH_TIMEOUT: "' + (currentConfig.cdcBatchTimeout || '300000') + '"\n' +
+cloneKubectlVars +
+'---\n' +
+'apiVersion: v1\n' +
+'kind: Secret\n' +
+'metadata:\n' +
+'  name: ' + secretName + '\n' +
+'  namespace: ' + namespace + '\n' +
+'type: Opaque\n' +
+'stringData:\n' +
+'  AWS_ACCESS_KEY_ID: "' + currentConfig.awsAccessKeyId + '"\n' +
+'  AWS_SECRET_ACCESS_KEY: "' + currentConfig.awsSecretAccessKey + '"\n' +
+'  REDIS_PASSWORD: "' + currentConfig.redisPassword + '"\n' +
+'  SNOWFLAKE_PASSWORD: "' + currentConfig.snowflakePassword + '"\n' +
+'  SPRING_BOOT_JAVA_OPTS: "--add-opens=java.base/java.nio=ALL-UNNAMED"\n' +
+'  debezium.properties.database.password: "' + currentConfig.postgresPassword + '"\n' +
+'---\n' +
+'apiVersion: apps/v1\n' +
+'kind: Deployment\n' +
+'metadata:\n' +
+'  name: ' + deploymentName + '\n' +
+'  namespace: ' + namespace + '\n' +
+'  labels:\n' +
+'    app: pg-kafka-snowflake-streamer\n' +
+'    agent: ' + currentConfig.agentName + '\n' +
+'spec:\n' +
+'  replicas: 1\n' +
+'  selector:\n' +
+'    matchLabels:\n' +
+'      app: pg-kafka-snowflake-streamer\n' +
+'      agent: ' + currentConfig.agentName + '\n' +
+'  template:\n' +
+'    metadata:\n' +
+'      annotations:\n' +
+'        prometheus.io/scrape: \'true\'\n' +
+'        prometheus.io/path: /actuator/prometheus\n' +
+'      labels:\n' +
+'        app: pg-kafka-snowflake-streamer\n' +
+'        agent: ' + currentConfig.agentName + '\n' +
+'    spec:\n' +
+'      terminationGracePeriodSeconds: 60\n' +
+'      containers:\n' +
+'      - name: pg-kafka-snowflake-streamer\n' +
+'        image: ' + ecrRegistry + '/pg-kafka-snowflake-streamer-' + ecrEnv + '/pg-kafka-snowflake-streamer:latest\n' +
+'        imagePullPolicy: Always\n' +
+'        env:\n' +
+'        - name: APP_OPTIONS\n' +
+'          value: \'-DNAMESPACE_ENV=' + currentConfig.environment + ' -Dspring.profiles.active=cloud,cloud-' + currentConfig.environment + '\'\n' +
+'        - name: JAVA_TOOL_OPTIONS\n' +
+'          value: \'--add-opens=java.base/java.nio=ALL-UNNAMED\'\n' +
+'        envFrom:\n' +
+'        - configMapRef:\n' +
+'            name: debezium-common-props\n' +
+'        - configMapRef:\n' +
+'            name: ' + configMapName + '\n' +
+'        - secretRef:\n' +
+'            name: ' + secretName + '\n' +
+'        ports:\n' +
+'        - containerPort: 8080\n' +
+'        readinessProbe:\n' +
+'          httpGet:\n' +
+'            path: /ready\n' +
+'            port: 8080\n' +
+'          initialDelaySeconds: 30\n' +
+'          periodSeconds: 10\n' +
+'        livenessProbe:\n' +
+'          failureThreshold: 3\n' +
+'          httpGet:\n' +
+'            path: /health/cdc\n' +
+'            port: 8080\n' +
+'            scheme: HTTP\n' +
+'          initialDelaySeconds: 60\n' +
+'          periodSeconds: 30\n' +
+'        resources:\n' +
+'          requests:\n' +
+'            cpu: ' + (currentConfig.environment === 'prod' ? '200m' : '100m') + '\n' +
+'            memory: ' + (currentConfig.environment === 'prod' ? '2Gi' : '512Mi') + '\n' +
+'          limits:\n' +
+'            cpu: \'' + (currentConfig.environment === 'prod' ? '2' : '1000m') + '\'\n' +
+'            memory: ' + (currentConfig.environment === 'prod' ? '2Gi' : '1Gi') + '\n' +
+'        volumeMounts:\n' +
+'        - name: cdc-offsets\n' +
+'          mountPath: /var/lib/cdc-offsets\n' +
+'      volumes:\n' +
+'      - name: cdc-offsets\n' +
+'        persistentVolumeClaim:\n' +
+'          claimName: ' + 'pg-kafka-snowflake-streamer-' + ecrEnv + '-offsets' + '\n' +
+'EOF';
+            
+            const previewDiv = document.querySelector('.step-content[data-step="4"] #preview');
+            const commandDiv = document.createElement('div');
+            commandDiv.style.cssText = 'margin-top: 20px; padding: 15px; background: #e8f5e8; border-radius: 4px;';
+            
+            const title = document.createElement('h4');
+            title.textContent = 'Single Deployment Command';
+            
+            const description = document.createElement('p');
+            description.textContent = 'Copy and paste this command to deploy all resources at once:';
+            
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'width: 100%; height: 200px; font-family: monospace; font-size: 12px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: white; overflow: auto; white-space: pre-wrap;';
+            pre.textContent = command;
+            
+            const copyButton = document.createElement('button');
+            copyButton.textContent = 'Copy to Clipboard';
+            copyButton.onclick = function() {
+                // Decode HTML entities using DOM parser
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = command;
+                const cleanCommand = textarea.value;
+                navigator.clipboard.writeText(cleanCommand).then(() => {
+                    copyButton.textContent = 'Copied!';
+                    setTimeout(() => {
+                        copyButton.textContent = 'Copy to Clipboard';
+                    }, 2000);
+                });
+            };
+            
+            const downloadButton = document.createElement('button');
+            downloadButton.textContent = 'Download Script';
+            downloadButton.style.marginLeft = '10px';
+            downloadButton.onclick = function() {
+                // Decode HTML entities using DOM parser
+                const textarea = document.createElement('textarea');
+                textarea.innerHTML = command;
+                const cleanCommand = textarea.value;
+                const blob = new Blob([cleanCommand], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `deploy-${currentConfig.agentName}.sh`;
+                a.click();
+                URL.revokeObjectURL(url);
+            };
+            
+            commandDiv.appendChild(title);
+            commandDiv.appendChild(description);
+            commandDiv.appendChild(pre);
+            commandDiv.appendChild(copyButton);
+            commandDiv.appendChild(downloadButton);
+            previewDiv.appendChild(commandDiv);
+        }
+
+    </script>
+</body>
+</html>
