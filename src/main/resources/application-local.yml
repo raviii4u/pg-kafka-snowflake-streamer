@@ -1,0 +1,59 @@
+# =============================================================================
+# Local development Spring profile
+# Activated with: --spring.profiles.active=local
+# Overrides the main application.yml for local stack (plain Kafka, local PG).
+# =============================================================================
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    security:
+      protocol: PLAINTEXT
+    # Override topic replication factor to 1 for single-broker local Kafka
+kafka:
+  topic-replication-factor: 1
+
+# Disable consumer — only test PG → Kafka (producer) flow
+cdc:
+  consumer:
+    enabled: false
+
+# Dummy Snowflake values so Spring resolves placeholders without crashing.
+# SnowflakeSink.init() catches the connection failure and continues.
+snowflake:
+  url: jdbc:snowflake://localhost
+  username: local
+  private-key: bG9jYWw=
+  database: LOCAL
+  warehouse: LOCAL
+  role: LOCAL
+
+debezium:
+  properties:
+    connector.class: io.debezium.connector.postgresql.PostgresConnector
+    database.hostname: ${DEBEZIUM_DATABASE_HOSTNAME:localhost}
+    database.port: ${DEBEZIUM_DATABASE_PORT:5432}
+    database.dbname: ${DEBEZIUM_DATABASE_DBNAME:testdb}
+    database.user: ${DEBEZIUM_DATABASE_USER:postgres}
+    database.password: ${DEBEZIUM_DATABASE_PASSWORD:postgres}
+    schema.include.list: ${DEBEZIUM_SCHEMA_INCLUDE_LIST:public}
+    plugin.name: pgoutput
+    slot.name: ${DEBEZIUM_SLOT_NAME:debezium_local_slot}
+    publication.name: ${DEBEZIUM_PUBLICATION_NAME:debezium_local_publication}
+    publication.autocreate.mode: disabled
+    offset.storage: org.apache.kafka.connect.storage.FileOffsetBackingStore
+    offset.storage.file.filename: ${DEBEZIUM_OFFSET_FILE:/tmp/cdc-local-offsets.dat}
+    offset.flush.interval.ms: 5000
+    snapshot.mode: ${DEBEZIUM_SNAPSHOT_MODE:never}
+    decimal.handling.mode: string
+    converters: datetime
+    datetime.type: io.pgkafkasnowflakestreamer.converter.CustomDateTimeConverter
+    heartbeat.interval.ms: 10000
+    heartbeat.topics.prefix: heartbeat
+    name: local-postgres-connector
+    topic.prefix: local
+
+logging:
+  level:
+    io.pgkafkasnowflakestreamer: DEBUG
+    io.debezium: INFO

@@ -1,0 +1,34 @@
+spring:
+  redis:
+    host: localhost
+    port: 6379
+  cloud:
+    stream:
+      kafka:
+        binder:
+          brokers: localhost:9092
+          configuration:
+            max.poll.records: 100
+            max.poll.interval.ms: 86400000
+            request.timeout.ms: 60000
+            session.timeout.ms: 45000
+            heartbeat.interval.ms: 15000
+
+snowflake:
+  url: jdbc:snowflake://test.snowflakecomputing.com
+  username: test
+  password: test
+  database: TEST_DB
+  schema: TEST_SCHEMA
+  warehouse: TEST_WH
+
+kafka:
+  enabled: false
+  bootstrap-servers: localhost:9092
+  consumer:
+    group-id: test-group
+    client-id: test-client
+
+cdc:
+  mode: REALTIME
+

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CDC Agent Generator</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .required { color: red; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .section { border: 1px solid #ddd; padding: 15px; margin: 15px 0; border-radius: 4px; }
+        .section h3 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>CDC Agent Generator</h1>
+    
+    <form id="agentForm">
+        <div class="section">
+            <h3>Basic Configuration</h3>
+            <div class="form-group">
+                <label>Environment <span class="required">*</span></label>
+                <select name="environment" required>
+                    <option value="dev">Development</option>
+                    <option value="prod">Production</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Agent Name <span class="required">*</span></label>
+                <input type="text" name="agentName" required placeholder="e.g., ecommerce-agent">
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>PostgreSQL Configuration</h3>
+            <div class="form-group">
+                <label>Host <span class="required">*</span></label>
+                <input type="text" name="postgresHost" required placeholder="your-rds-endpoint.amazonaws.com">
+            </div>
+            <div class="form-group">
+                <label>Database <span class="required">*</span></label>
+                <input type="text" name="postgresDatabase" required>
+            </div>
+            <div class="form-group">
+                <label>User <span class="required">*</span></label>
+                <input type="text" name="postgresUser" required>
+            </div>
+            <div class="form-group">
+                <label>Password <span class="required">*</span></label>
+                <input type="password" name="postgresPassword" required>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Snowflake Configuration</h3>
+            <div class="form-group">
+                <label>Schema <span class="required">*</span></label>
+                <input type="text" name="snowflakeSchema" required>
+            </div>
+            <div class="form-group">
+                <label>Password <span class="required">*</span></label>
+                <input type="password" name="snowflakePassword" required>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Debezium Configuration</h3>
+            <div class="form-group">
+                <label>Schema Include List <span class="required">*</span></label>
+                <input type="text" name="schemaIncludeList" required placeholder="public">
+            </div>
+            <div class="form-group">
+                <label>Replication Slot Name <span class="required">*</span></label>
+                <input type="text" name="replicationSlotName" required>
+            </div>
+            <div class="form-group">
+                <label>Publication Name <span class="required">*</span></label>
+                <input type="text" name="publicationName" required>
+            </div>
+            <div class="form-group">
+                <label>Table Exclude List</label>
+                <input type="text" name="tableExcludeList" placeholder="Optional">
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Kafka Configuration</h3>
+            <div class="form-group">
+                <label>Bootstrap Servers <span class="required">*</span></label>
+                <input type="text" name="kafkaBootstrapServers" required>
+            </div>
+            <div class="form-group">
+                <label>Consumer Client ID <span class="required">*</span></label>
+                <input type="text" name="kafkaConsumerClientId" required>
+            </div>
+            <div class="form-group">
+                <label>Consumer Group ID <span class="required">*</span></label>
+                <input type="text" name="kafkaConsumerGroupId" required>
+            </div>
+            <div class="form-group">
+                <label>Consumer Topic Pattern <span class="required">*</span></label>
+                <input type="text" name="kafkaConsumerTopicPattern" required>
+            </div>
+            <div class="form-group">
+                <label>Topic Prefix <span class="required">*</span></label>
+                <input type="text" name="kafkaTopicPrefix" required>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Other Configuration</h3>
+            <div class="form-group">
+                <label>Redis Password <span class="required">*</span></label>
+                <input type="password" name="redisPassword" required>
+            </div>
+            <div class="form-group">
+            </div>
+            <div class="form-group">
+                <label>AWS Access Key ID <span class="required">*</span></label>
+                <input type="text" name="awsAccessKeyId" required>
+            </div>
+            <div class="form-group">
+                <label>AWS Secret Access Key <span class="required">*</span></label>
+                <input type="password" name="awsSecretAccessKey" required>
+            </div>
+        </div>
+
+        <button type="submit">Generate YAML Files</button>
+    </form>
+
+    <script>
+        document.getElementById('agentForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            fetch('/generate-yaml', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${data.agentName}-k8s-manifests.zip`;
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(error => {
+                alert('Error generating files: ' + error.message);
+            });
+        });
+    </script>
+</body>
+</html>

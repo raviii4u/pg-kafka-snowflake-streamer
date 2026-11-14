@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pg-kafka-snowflake-streamer-${AGENT_NAME}
+  namespace: ${NAMESPACE}
+  labels:
+    app: pg-kafka-snowflake-streamer
+    agent: ${AGENT_NAME}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pg-kafka-snowflake-streamer
+      agent: ${AGENT_NAME}
+  template:
+    metadata:
+      labels:
+        app: pg-kafka-snowflake-streamer
+        agent: ${AGENT_NAME}
+    spec:
+      containers:
+      - name: pg-kafka-snowflake-streamer
+        image: ${DOCKER_IMAGE}
+        imagePullPolicy: Always
+        env:
+        - name: APP_OPTIONS
+          value: '-DNAMESPACE_ENV=${ENVIRONMENT} -Dspring.profiles.active=cloud,cloud-${ENVIRONMENT}'
+        - name: JAVA_TOOL_OPTIONS
+          value: '--add-opens=java.base/java.nio=ALL-UNNAMED'
+        envFrom:
+        - configMapRef:
+            name:  ${DEBEZIUM_COMMON_PROPS}
+        - configMapRef:
+            name: ${CONFIG_MAP_NAME}
+        - secretRef:
+            name: ${SECRET_NAME}
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: 100m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        volumeMounts:
+        - name: cdc-offsets
+          mountPath: /var/lib/cdc-offsets
+      volumes:
+      - name: cdc-offsets
+        persistentVolumeClaim:
+          claimName: ${PVC_CLAIM}

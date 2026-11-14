@@ -1,0 +1,72 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.3.5'
+    id 'io.spring.dependency-management' version '1.1.6'
+}
+
+ext {
+    set('springCloudVersion', "2023.0.3")
+}
+
+bootRun {
+    jvmArgs = ["--add-opens=java.base/java.nio=ALL-UNNAMED"]
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+group = 'io.pgkafkasnowflakestreamer'
+version = '0.0.1-SNAPSHOT'
+archivesBaseName = 'pg-kafka-snowflake-streamer'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://packages.confluent.io/maven/")
+    }
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'io.debezium:debezium-api:2.5.0.Final'
+    implementation 'io.debezium:debezium-embedded:2.5.0.Final'
+    implementation 'io.debezium:debezium-connector-postgres:2.5.0.Final'
+    implementation 'net.snowflake:snowflake-jdbc:3.14.4'
+    implementation 'org.postgresql:postgresql'
+    implementation 'com.zaxxer:HikariCP'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+    implementation('org.springframework.cloud.fn:debezium-autoconfigure:4.0.0') {
+        exclude group: 'io.apicurio'
+    }
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'redis.clients:jedis'
+
+    // Spring Cloud Stream Kafka
+    implementation 'org.springframework.cloud:spring-cloud-stream'
+    implementation 'org.springframework.cloud:spring-cloud-stream-binder-kafka'
+    implementation 'org.springframework.kafka:spring-kafka'
+    implementation 'software.amazon.msk:aws-msk-iam-auth:1.1.9'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
+
+jar {
+    enabled = false
+}
