@@ -2,6 +2,14 @@
 
 A Spring Boot application for streaming Change Data Capture (CDC) events from PostgreSQL to Snowflake using embedded Debezium. Each running instance is a standalone agent dedicated to one PostgreSQL database.
 
+---
+
+⭐ **If this project has been useful to you or your organization, please consider [starring the repo](../../stargazers) — it helps others discover it.**
+
+We'd also love to hear how you're using it. Head over to [GitHub Discussions](../../discussions) and share how pg-kafka-snowflake-streamer helped your team. Your feedback shapes future development.
+
+---
+
 ## Architecture
 
 ```
