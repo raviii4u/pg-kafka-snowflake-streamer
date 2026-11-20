@@ -18,12 +18,13 @@ PostgreSQL (WAL) → Debezium (embedded) → Kafka (MSK) → Scheduled Consumer 
 
 ## Features:
 
-### 1. Postgres -> Kafka (with Embedded debezium).
-### 2. One time data snapshot loads from PG -> Snowflake with built in schema conversion.
-### 3. Near Real time CDC to Kafka (For Application integrations)
-### 4. Runs Scheduled micro-batches to move data from Kafka to Snowflake (~5 min, ~10 min configurable)
-### 5. Built in Schema evolution (New Columns or New table changes created on snowflake target)
-
+```
+ 1. Postgres -> Kafka (with Embedded debezium).
+ 2. One time data snapshot loads from PG -> Snowflake with built in schema conversion.
+ 3. Near Real time CDC to Kafka (For Application integrations)
+ 4. Runs Scheduled micro-batches to move data from Kafka to Snowflake (~5 min, ~10 min configurable)
+ 5. Built in Schema evolution (New Columns or New table changes created on snowflake target)
+```
 
 ### One Agent per Database
 
